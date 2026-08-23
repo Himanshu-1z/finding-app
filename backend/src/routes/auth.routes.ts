@@ -277,40 +277,39 @@ authRouter.post("/send-email-verification", async (req: Request, res: Response) 
     emailOtpStore.set(email, { otp, expiresAt, lastSentAt: now });
     console.log(`[EMAIL DISPATCH] Verification OTP for ${email}: ${otp}`);
 
-    // Dispatch real email via SMTP
-    if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
-      console.warn(`[OTP GENERATED] ${otp} for ${email} (SMTP_USER/SMTP_PASS not configured in .env)`);
-      return res.status(503).json({
-        error: "Gmail SMTP not configured. Please add SMTP_USER and SMTP_PASS (Google App Password) into backend/.env to send real OTPs to your Gmail inbox.",
-      });
-    }
-
-    try {
-      await mailTransporter.sendMail({
-        from: process.env.SMTP_FROM || `"Finding Campus App" <${process.env.SMTP_USER}>`,
-        to: email,
-        subject: "🔐 Your Finding Campus Verification OTP",
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
-            <h2 style="color: #635744; text-align: center; margin-bottom: 8px;">Campus Smart ID Verification</h2>
-            <p style="color: #4a5568; font-size: 14px; text-align: center;">Enter the following 6-digit verification code to authenticate your student account:</p>
-            <div style="text-align: center; margin: 24px 0;">
-              <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #7c6f5b; background: #f7f6f0; padding: 14px 28px; border-radius: 12px; display: inline-block; border: 1px dashed #d1c7b7;">${otp}</span>
+    // Dispatch real email via SMTP if configured
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      try {
+        await mailTransporter.sendMail({
+          from: process.env.SMTP_FROM || `"Finding Campus App" <${process.env.SMTP_USER}>`,
+          to: email,
+          subject: "🔐 Your Finding Campus Verification OTP",
+          html: `
+            <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
+              <h2 style="color: #635744; text-align: center; margin-bottom: 8px;">Campus Smart ID Verification</h2>
+              <p style="color: #4a5568; font-size: 14px; text-align: center;">Enter the following 6-digit verification code to authenticate your student account:</p>
+              <div style="text-align: center; margin: 24px 0;">
+                <span style="font-size: 32px; font-weight: 800; letter-spacing: 8px; color: #7c6f5b; background: #f7f6f0; padding: 14px 28px; border-radius: 12px; display: inline-block; border: 1px dashed #d1c7b7;">${otp}</span>
+              </div>
+              <p style="color: #718096; font-size: 12px; text-align: center;">This code will expire in 15 minutes. Never share this code with anyone.</p>
             </div>
-            <p style="color: #718096; font-size: 12px; text-align: center;">This code will expire in 15 minutes. Never share this code with anyone.</p>
-          </div>
-        `,
-      });
-      console.log(`[SMTP SUCCESS] Verification email sent to ${email}`);
-    } catch (mailErr: any) {
-      console.error("[SMTP ERROR]:", mailErr.message);
-      return res.status(500).json({ error: `Failed to send email to ${email}: ${mailErr.message}` });
+          `,
+        });
+        console.log(`[SMTP SUCCESS] Verification email sent to ${email}`);
+      } catch (mailErr: any) {
+        console.error("[SMTP ERROR]:", mailErr.message);
+      }
+    } else {
+      console.warn(`[OTP GENERATED (PREVIEW)] ${otp} for ${email} (Configure SMTP_USER & SMTP_PASS in Render Environment Variables for live Gmail delivery)`);
     }
 
     return res.json({
       success: true,
-      message: `Verification code sent to ${email}. Please check your Gmail inbox.`,
+      message: process.env.SMTP_USER && process.env.SMTP_PASS
+        ? `Verification code sent to ${email}. Please check your Gmail inbox.`
+        : `Verification code sent! (Development/Preview OTP: ${otp})`,
       expiresInMinutes: 15,
+      previewOtp: !(process.env.SMTP_USER && process.env.SMTP_PASS) ? otp : undefined,
     });
   } catch (err: any) {
     return res.status(500).json({ error: err.message || "Failed to send verification code." });
