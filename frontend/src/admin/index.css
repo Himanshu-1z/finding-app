@@ -1,0 +1,86 @@
+@import "tailwindcss";
+
+:root {
+  --color-background: #fcf9f2;
+  --color-surface: #fcf9f2;
+  --color-surface-container: #f1eee7;
+  --color-surface-container-low: #f6f3ec;
+  --color-surface-container-high: #ebe8e1;
+  --color-surface-variant: #e5e2db;
+  --color-primary: #635744;
+  --color-primary-fixed: #f1e0c8;
+  --color-primary-fixed-dim: #d5c4ad;
+  --color-secondary: #625e55;
+  --color-secondary-container: #e8e2d6;
+  --color-tertiary: #615744;
+  --color-tertiary-container: #7b6f5b;
+  --color-on-background: #3a3226;
+  --color-on-surface: #3a3226;
+  --color-on-surface-variant: #544a3a;
+  --color-on-primary: #ffffff;
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  --color-outline: #7d766c;
+  --color-outline-variant: #cec5ba;
+
+  --font-sans: "Manrope", sans-serif;
+  --font-logo: "Chewy", cursive;
+}
+
+@theme {
+  --color-background: var(--color-background);
+  --color-surface: var(--color-surface);
+  --color-surface-container: var(--color-surface-container);
+  --color-surface-container-low: var(--color-surface-container-low);
+  --color-surface-container-high: var(--color-surface-container-high);
+  --color-surface-variant: var(--color-surface-variant);
+  --color-primary: var(--color-primary);
+  --color-primary-fixed: var(--color-primary-fixed);
+  --color-primary-fixed-dim: var(--color-primary-fixed-dim);
+  --color-secondary: var(--color-secondary);
+  --color-secondary-container: var(--color-secondary-container);
+  --color-tertiary: var(--color-tertiary);
+  --color-tertiary-container: var(--color-tertiary-container);
+  --color-on-background: var(--color-on-background);
+  --color-on-surface: var(--color-on-surface);
+  --color-on-surface-variant: var(--color-on-surface-variant);
+  --color-on-primary: var(--color-on-primary);
+  --color-error: var(--color-error);
+  --color-error-container: var(--color-error-container);
+  --color-on-error-container: var(--color-on-error-container);
+  --color-outline: var(--color-outline);
+  --color-outline-variant: var(--color-outline-variant);
+
+  --font-sans: var(--font-sans);
+  --font-logo: var(--font-logo);
+}
+
+@layer utilities {
+  .neo-outset {
+    background-color: var(--color-surface);
+    border-radius: 20px;
+    box-shadow: 6px 6px 12px var(--color-surface-container-high), -6px -6px 12px #ffffff;
+  }
+  .neo-inset {
+    background-color: var(--color-surface);
+    border-radius: 20px;
+    box-shadow: inset 4px 4px 8px var(--color-surface-container-high), inset -4px -4px 8px #ffffff;
+  }
+  .neo-button {
+    background-color: var(--color-surface);
+    border-radius: 12px;
+    box-shadow: 4px 4px 8px var(--color-surface-container-high), -4px -4px 8px #ffffff;
+    transition: all 0.2s ease-in-out;
+    cursor: pointer;
+  }
+  .neo-button:active {
+    box-shadow: inset 2px 2px 5px var(--color-surface-container-high), inset -2px -2px 5px #ffffff;
+  }
+}
+
+body {
+  background-color: var(--color-background);
+  color: var(--color-on-background);
+  font-family: var(--font-sans);
+}

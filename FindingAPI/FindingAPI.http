@@ -1,0 +1,6 @@
+@FindingAPI_HostAddress = http://localhost:5199
+
+GET {{FindingAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

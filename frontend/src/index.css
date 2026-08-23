@@ -1,0 +1,124 @@
+@import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;600;700&family=Chewy&display=swap');
+@import "tailwindcss";
+
+
+@theme {
+  --font-sans: "Manrope", sans-serif;
+  
+  --color-background: #fcf9f2;
+  --color-surface: #fcf9f2;
+  --color-surface-container: #f1eee7;
+  --color-surface-container-low: #f6f3ec;
+  --color-surface-container-high: #ebe8e1;
+  --color-surface-variant: #e5e2db;
+  
+  --color-primary: #635744;
+  --color-primary-fixed: #f1e0c8;
+  --color-primary-fixed-dim: #d5c4ad;
+  
+  --color-secondary: #625e55;
+  --color-secondary-container: #e8e2d6;
+  
+  --color-tertiary: #615744;
+  --color-tertiary-container: #7b6f5b;
+  
+  --color-on-background: #1c1c18;
+  --color-on-surface: #1c1c18;
+  --color-on-surface-variant: #4c463d;
+  --color-on-primary: #ffffff;
+  
+  --color-error: #ba1a1a;
+  --color-error-container: #ffdad6;
+  --color-on-error-container: #93000a;
+  
+  --color-outline: #7d766c;
+  --color-outline-variant: #cec5ba;
+}
+
+@layer base {
+  * {
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+@layer utilities {
+  .font-logo {
+    font-family: 'Chewy', cursive;
+    -webkit-text-stroke: 1.5px currentColor;
+    paint-order: stroke fill;
+  }
+  .neo-inset, .neomorphic-inset {
+    box-shadow: inset 4px 4px 10px #D1C8B7, inset -4px -4px 10px #FFFFFF;
+  }
+  .neo-outset, .neomorphic-outset {
+    box-shadow: 4px 4px 10px #D1C8B7, -4px -4px 10px #FFFFFF;
+  }
+  .neo-button {
+    box-shadow: 4px 4px 10px rgba(209, 200, 183, 0.4), -4px -4px 10px rgba(255, 255, 255, 0.9);
+    transition: all 0.2s ease-in-out;
+  }
+  .neo-button:active {
+    box-shadow: inset 4px 4px 8px rgba(209, 200, 183, 0.4), inset -4px -4px 8px rgba(255, 255, 255, 0.9);
+  }
+  .glass-blob {
+    background: rgba(252, 249, 242, 0.4);
+    backdrop-filter: blur(20px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.05);
+  }
+  .hide-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .hide-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .liquid-blob-1 {
+    position: absolute;
+    top: -10%;
+    left: -10%;
+    width: 300px;
+    height: 300px;
+    background: linear-gradient(135deg, rgba(203, 198, 186, 0.4), rgba(241, 224, 200, 0.2));
+    border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%;
+    filter: blur(20px);
+    animation: morph 8s ease-in-out infinite alternate;
+    z-index: 0;
+  }
+
+  .liquid-blob-2 {
+    position: absolute;
+    bottom: -5%;
+    right: -10%;
+    width: 400px;
+    height: 400px;
+    background: linear-gradient(135deg, rgba(213, 196, 173, 0.3), rgba(246, 243, 236, 0.5));
+    border-radius: 50% 50% 30% 70% / 60% 40% 70% 40%;
+    filter: blur(30px);
+    animation: morph 10s ease-in-out infinite alternate-reverse;
+    z-index: 0;
+  }
+
+  @keyframes morph {
+    0% { border-radius: 40% 60% 70% 30% / 40% 50% 60% 50%; transform: rotate(0deg) scale(1); }
+    100% { border-radius: 60% 40% 30% 70% / 60% 50% 40% 50%; transform: rotate(10deg) scale(1.1); }
+  }
+
+  @keyframes progress-indeterminate {
+    0% { transform: translateX(-100%) scaleX(0.2); }
+    50% { transform: translateX(0%) scaleX(0.7); }
+    100% { transform: translateX(100%) scaleX(0.2); }
+  }
+
+  .animate-progress-indeterminate {
+    animation: progress-indeterminate 1.4s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    transform-origin: 0% 50%;
+  }
+}
+
+
