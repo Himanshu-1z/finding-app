@@ -1,0 +1,214 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model User {
+  id                String    @id @default(uuid())
+  anonymousUsername String    @unique
+  email             String    @unique
+  passwordHash      String
+  realName          String?   @default("")
+  studentIdNumber   String?   @default("")
+  studentIdPhotoUrl String?   @db.Text
+  collegeName       String?   @default("")
+  branch            String?   @default("")
+  department        String?   @default("")
+  yearSemester      String?   @default("1")
+  mobileNumber      String?   @default("")
+  section           String?   @default("")
+  avatarUrl         String?   @db.Text
+  bio               String?   @default("")
+  dateOfBirth       DateTime?
+  gender            String?   @default("Male")
+  role              String    @default("User")
+  isActive          Boolean   @default(true)
+  isSetupComplete   Boolean   @default(false)
+  isVerifiedBadge   Boolean   @default(false)
+  lastActiveAt      DateTime  @default(now())
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+
+  confessions          Confession[]
+  confessionLikes      ConfessionLike[]
+  confessionComments   ConfessionComment[]
+  targetedInteractions InteractionRequest[]  @relation("TargetUser")
+  confessorInteractions InteractionRequest[] @relation("ConfessorUser")
+  chatRoomsAsUser1     ChatRoom[]            @relation("User1")
+  chatRoomsAsUser2     ChatRoom[]            @relation("User2")
+  chatMessages         ChatMessage[]
+  notifications        Notification[]
+  reportsFiled         Report[]              @relation("Reporter")
+  reportsReceived      Report[]              @relation("ReportedUser")
+  verifications        StudentVerification[]
+  payments             Payment[]
+}
+
+model Confession {
+  id           String   @id @default(uuid())
+  authorId     String
+  author       User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content      String   @db.Text
+  targetPerson String?
+  isApproved   Boolean  @default(true)
+  isPinned     Boolean  @default(false)
+  reportCount  Int      @default(0)
+  type         String   @default("public")
+  status       String   @default("visible")
+  collegeName  String?
+  branch       String?
+  yearSemester String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  likes        ConfessionLike[]
+  comments     ConfessionComment[]
+  interactions InteractionRequest[]
+  reports      Report[]
+}
+
+model ConfessionLike {
+  id           String     @id @default(uuid())
+  confessionId String
+  confession   Confession @relation(fields: [confessionId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt    DateTime   @default(now())
+
+  @@unique([confessionId, userId])
+}
+
+model ConfessionComment {
+  id           String     @id @default(uuid())
+  confessionId String
+  confession   Confession @relation(fields: [confessionId], references: [id], onDelete: Cascade)
+  authorId     String
+  author       User       @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  content      String     @db.Text
+  createdAt    DateTime   @default(now())
+}
+
+model InteractionRequest {
+  id             String      @id @default(uuid())
+  confessionId   String
+  confession     Confession  @relation(fields: [confessionId], references: [id], onDelete: Cascade)
+  targetUserId   String
+  targetUser     User        @relation("TargetUser", fields: [targetUserId], references: [id], onDelete: Cascade)
+  confessorId    String
+  confessor      User        @relation("ConfessorUser", fields: [confessorId], references: [id], onDelete: Cascade)
+  targetResponse String      @default("InteractRequested")
+  confessorAction String     @default("Pending")
+  respondedAt    DateTime?
+  createdAt      DateTime    @default(now())
+
+  chatRoom       ChatRoom?
+}
+
+model ChatRoom {
+  id                   String              @id @default(uuid())
+  interactionRequestId String?             @unique
+  interactionRequest   InteractionRequest? @relation(fields: [interactionRequestId], references: [id], onDelete: SetNull)
+  user1Id              String
+  user1                User                @relation("User1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2Id              String
+  user2                User                @relation("User2", fields: [user2Id], references: [id], onDelete: Cascade)
+  isActive             Boolean             @default(true)
+  createdAt            DateTime            @default(now())
+
+  messages ChatMessage[]
+  payments Payment[]
+}
+
+model ChatMessage {
+  id          String   @id @default(uuid())
+  chatRoomId  String
+  chatRoom    ChatRoom @relation(fields: [chatRoomId], references: [id], onDelete: Cascade)
+  senderId    String
+  sender      User     @relation(fields: [senderId], references: [id], onDelete: Cascade)
+  content     String   @db.Text
+  mediaUrl    String?  @db.Text
+  messageType String   @default("Text")
+  isRead      Boolean  @default(false)
+  sentAt      DateTime @default(now())
+}
+
+model Notification {
+  id        String   @id @default(uuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  isRead    Boolean  @default(false)
+  data      String?
+  createdAt DateTime @default(now())
+}
+
+model Report {
+  id             String      @id @default(uuid())
+  reporterId     String
+  reporter       User        @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUserId String?
+  reportedUser   User?       @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  confessionId   String?
+  confession     Confession? @relation(fields: [confessionId], references: [id], onDelete: Cascade)
+  reason         String
+  status         String      @default("pending")
+  details        String?     @db.Text
+  createdAt      DateTime    @default(now())
+}
+
+model StudentVerification {
+  id                 String    @id @default(uuid())
+  userId             String
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  studentIdPhotoUrl  String?   @db.Text
+  status             String    @default("Pending")
+  adminNotes         String?   @db.Text
+  submittedAt        DateTime  @default(now())
+  reviewedAt         DateTime?
+  reviewedByAdminId  String?
+}
+
+model Payment {
+  id             String    @id @default(uuid())
+  userId         String
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  chatRoomId     String?
+  chatRoom       ChatRoom? @relation(fields: [chatRoomId], references: [id], onDelete: SetNull)
+  amount         Decimal   @default(0.0)
+  transactionRef String?
+  status         String    @default("Pending")
+  createdAt      DateTime  @default(now())
+}
+
+model StaffAdmin {
+  id          String   @id @default(uuid())
+  name        String
+  email       String   @unique
+  role        String   @default("Senior Moderator")
+  status      String   @default("active")
+  lastLogin   String   @default("Never")
+  permissions String   @default("[\"users.view\",\"confessions.moderate\"]")
+  createdAt   DateTime @default(now())
+}
+
+model SystemSetting {
+  key       String   @id
+  value     String   @db.Text
+  updatedAt DateTime @default(now())
+}
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  adminName String
+  action    String
+  target    String
+  type      String   @default("security")
+  timestamp DateTime @default(now())
+}
