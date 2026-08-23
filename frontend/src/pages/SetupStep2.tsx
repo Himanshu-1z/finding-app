@@ -23,6 +23,9 @@ export function SetupStep2() {
   const [selectedInterests, setSelectedInterests] = useState<string[]>(user?.interests || []);
   const [errorMessage, setErrorMessage] = useState("");
 
+  // Configurable OTP Toggle via Environment Variable (VITE_REQUIRE_EMAIL_OTP = "true" | "false")
+  const isOtpRequired = import.meta.env.VITE_REQUIRE_EMAIL_OTP === "true";
+
   // Email Verification OTP State
   const [emailOtp, setEmailOtp] = useState("");
   const [otpSent, setOtpSent] = useState(false);
@@ -122,7 +125,7 @@ export function SetupStep2() {
       setErrorMessage("Please enter your email ID.");
       return;
     }
-    if (!isEmailVerified) {
+    if (isOtpRequired && !isEmailVerified) {
       setErrorMessage("Please click 'Send OTP' and verify your email with the 6-digit code before continuing.");
       return;
     }
@@ -383,20 +386,22 @@ export function SetupStep2() {
               <label className="text-sm text-on-surface-variant font-semibold">
                 Email ID <span className="text-red-500">*</span>
               </label>
-              {isEmailVerified ? (
-                <span className="text-[11px] font-bold text-emerald-600 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
-                  <ShieldCheck className="w-3.5 h-3.5" /> Email Verified
-                </span>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleSendOtp}
-                  disabled={otpLoading || resendCooldown > 0}
-                  className="text-xs font-bold text-primary hover:underline flex items-center gap-1 disabled:opacity-60 cursor-pointer"
-                >
-                  <Send className="w-3 h-3" />
-                  {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : otpSent ? "Resend OTP" : "Send OTP"}
-                </button>
+              {isOtpRequired && (
+                isEmailVerified ? (
+                  <span className="text-[11px] font-bold text-emerald-600 bg-emerald-500/10 px-2.5 py-0.5 rounded-full border border-emerald-500/30 flex items-center gap-1">
+                    <ShieldCheck className="w-3.5 h-3.5" /> Email Verified
+                  </span>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleSendOtp}
+                    disabled={otpLoading || resendCooldown > 0}
+                    className="text-xs font-bold text-primary hover:underline flex items-center gap-1 disabled:opacity-60 cursor-pointer"
+                  >
+                    <Send className="w-3 h-3" />
+                    {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : otpSent ? "Resend OTP" : "Send OTP"}
+                  </button>
+                )
               )}
             </div>
             <div className="relative w-full h-14">
@@ -432,8 +437,8 @@ export function SetupStep2() {
               </div>
             )}
 
-            {/* OTP Code Entry Row */}
-            {otpSent && !isEmailVerified && (
+            {/* OTP Code Entry Row (Only shown when OTP is enabled) */}
+            {isOtpRequired && otpSent && !isEmailVerified && (
               <div className="p-3 bg-surface-container-low rounded-2xl border border-primary/20 space-y-2 animate-fade-in mt-1">
                 <div className="flex items-center justify-between text-xs">
                   <span className="font-semibold text-on-surface flex items-center gap-1">
