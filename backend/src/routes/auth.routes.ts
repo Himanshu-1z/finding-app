@@ -7,17 +7,20 @@ import { authenticateJwt, optionalJwt, JWT_SECRET } from "../middleware/auth";
 
 export const authRouter = Router();
 
-// Nodemailer transport for sending verification emails
+// Nodemailer transport for sending verification emails (forced IPv4 for cloud host compatibility)
 const mailTransporter = nodemailer.createTransport({
-  service: process.env.SMTP_SERVICE || "gmail",
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: Number(process.env.SMTP_PORT) || 587,
-  secure: process.env.SMTP_SECURE === "true",
+  secure: false, // upgrade later with STARTTLS
   auth: {
-    user: process.env.SMTP_USER || "finding.campus.auth@gmail.com",
+    user: process.env.SMTP_USER || "findinnnggg@gmail.com",
     pass: process.env.SMTP_PASS || "",
   },
-});
+  tls: {
+    rejectUnauthorized: false,
+  },
+  family: 4, // Forces IPv4 resolution to eliminate Render ENETUNREACH IPv6 issues
+} as any);
 
 const generateToken = (user: any) => {
   return jwt.sign(
