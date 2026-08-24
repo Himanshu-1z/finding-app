@@ -1,14 +1,13 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../prisma";
-import { optionalJwt } from "../middleware/auth";
+import { authenticateJwt } from "../middleware/auth";
 
 export const notificationRouter = Router();
 
 // GET /api/notifications
-notificationRouter.get("/", optionalJwt, async (req: Request, res: Response) => {
+notificationRouter.get("/", authenticateJwt, async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) return res.json([]);
+    const userId = req.user!.id;
 
     const notifications = await prisma.notification.findMany({
       where: { userId },
@@ -31,9 +30,20 @@ notificationRouter.get("/", optionalJwt, async (req: Request, res: Response) => 
 });
 
 // PUT /api/notifications/:id/read
-notificationRouter.put("/:id/read", optionalJwt, async (req: Request, res: Response) => {
+notificationRouter.put("/:id/read", authenticateJwt, async (req: Request, res: Response) => {
   try {
     const notifId = String(req.params.id);
+    const userId = req.user!.id;
+
+    const notif = await prisma.notification.findUnique({
+      where: { id: notifId },
+    });
+
+    if (!notif) return res.status(404).json({ error: "Notification not found" });
+    if (notif.userId !== userId && req.user?.role !== "Admin" && req.user?.role !== "Super Admin") {
+      return res.status(403).json({ error: "Forbidden. Not your notification." });
+    }
+
     await prisma.notification.update({
       where: { id: notifId },
       data: { isRead: true },

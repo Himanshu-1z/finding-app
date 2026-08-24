@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../prisma";
-import { optionalJwt } from "../middleware/auth";
+import { authenticateJwt, optionalJwt } from "../middleware/auth";
 import { emitToUser, broadcastGlobal } from "../websocket/chatHub";
 
 export const confessionRouter = Router();
@@ -122,6 +122,7 @@ function whereFilter(filterObj: any, field: string, value: string) {
 
 confessionRouter.get("/", optionalJwt, handleGetFeed);
 confessionRouter.get("/feed", optionalJwt, handleGetFeed);
+confessionRouter.get("/search", optionalJwt, handleGetFeed);
 
 // GET /api/confession/targeted
 confessionRouter.get("/targeted", optionalJwt, async (req: Request, res: Response) => {
@@ -290,24 +291,10 @@ confessionRouter.post("/", optionalJwt, async (req: Request, res: Response) => {
 });
 
 // POST /api/confession/:id/like
-confessionRouter.post("/:id/like", optionalJwt, async (req: Request, res: Response) => {
+confessionRouter.post("/:id/like", authenticateJwt, async (req: Request, res: Response) => {
   try {
     const confessionId = String(req.params.id);
-    let userId = req.user?.id;
-
-    if (!userId) {
-      let guest = await prisma.user.findFirst();
-      if (!guest) {
-        guest = await prisma.user.create({
-          data: {
-            anonymousUsername: "Guest_" + Date.now().toString(36),
-            email: `guest_${Date.now()}@finding.app`,
-            passwordHash: "auto_hash",
-          },
-        });
-      }
-      userId = guest.id;
-    }
+    const userId = req.user!.id;
 
     const confession = await prisma.confession.findUnique({
       where: { id: confessionId },

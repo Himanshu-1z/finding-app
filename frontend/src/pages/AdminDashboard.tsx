@@ -13,7 +13,7 @@ import {
   Sparkles,
   AlertTriangle,
   Award,
-  IndianRupee,
+  MessageSquare,
   RefreshCw
 } from 'lucide-react';
 import { adminApi, PendingVerification, AdminUser } from '../services/admin';
@@ -139,11 +139,11 @@ export const AdminDashboard: React.FC = () => {
 
           <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-5 backdrop-blur-md">
             <div className="flex items-center justify-between">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Chat Unlock Revenue</span>
-              <IndianRupee className="w-5 h-5 text-pink-400" />
+              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Campus Engagement</span>
+              <MessageSquare className="w-5 h-5 text-purple-400" />
             </div>
-            <div className="text-3xl font-bold mt-2 text-pink-300">₹841</div>
-            <span className="text-xs text-slate-500 mt-1 inline-block">29 Unlocks via Razorpay</span>
+            <div className="text-3xl font-bold mt-2 text-purple-300">100% Free</div>
+            <span className="text-xs text-slate-500 mt-1 inline-block">Zero Paywalls & Open Campus</span>
           </div>
         </div>
 
@@ -363,19 +363,19 @@ export const AdminDashboard: React.FC = () => {
 
             <div className="bg-slate-900/60 border border-slate-800 rounded-2xl p-6">
               <h3 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                <IndianRupee className="w-5 h-5 text-pink-400" /> Razorpay Unlock Metrics
+                <MessageSquare className="w-5 h-5 text-purple-400" /> Free Campus Communication
               </h3>
               <p className="text-slate-400 text-sm leading-relaxed mb-4">
-                Chat rooms remain free for the initial 30 days. After trial, users unlock unlimited end-to-end chat via Razorpay ₹29 micropayments.
+                All chat rooms, connections, and stories are 100% free and open for verified college students without micropayments or subscriptions.
               </p>
               <div className="grid grid-cols-2 gap-4 mt-2">
                 <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <span className="text-xs text-slate-500">Successful Transactions</span>
-                  <div className="text-2xl font-bold text-white mt-1">29</div>
+                  <span className="text-xs text-slate-500">Access Tier</span>
+                  <div className="text-2xl font-bold text-white mt-1">Unlimited Free</div>
                 </div>
                 <div className="bg-slate-950 p-4 rounded-xl border border-slate-800">
-                  <span className="text-xs text-slate-500">Payment Conversion</span>
-                  <div className="text-2xl font-bold text-pink-400 mt-1">88.5%</div>
+                  <span className="text-xs text-slate-500">Encryption & Safety</span>
+                  <div className="text-2xl font-bold text-purple-400 mt-1">100% Secure</div>
                 </div>
               </div>
             </div>

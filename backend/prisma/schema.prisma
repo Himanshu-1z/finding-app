@@ -46,7 +46,6 @@ model User {
   reportsFiled         Report[]              @relation("Reporter")
   reportsReceived      Report[]              @relation("ReportedUser")
   verifications        StudentVerification[]
-  payments             Payment[]
 }
 
 model Confession {
@@ -121,7 +120,6 @@ model ChatRoom {
   createdAt            DateTime            @default(now())
 
   messages ChatMessage[]
-  payments Payment[]
 }
 
 model ChatMessage {
@@ -173,18 +171,6 @@ model StudentVerification {
   submittedAt        DateTime  @default(now())
   reviewedAt         DateTime?
   reviewedByAdminId  String?
-}
-
-model Payment {
-  id             String    @id @default(uuid())
-  userId         String
-  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  chatRoomId     String?
-  chatRoom       ChatRoom? @relation(fields: [chatRoomId], references: [id], onDelete: SetNull)
-  amount         Decimal   @default(0.0)
-  transactionRef String?
-  status         String    @default("Pending")
-  createdAt      DateTime  @default(now())
 }
 
 model StaffAdmin {

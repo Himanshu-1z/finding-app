@@ -1,42 +1,24 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../prisma";
-import { optionalJwt } from "../middleware/auth";
+import { authenticateJwt, optionalJwt } from "../middleware/auth";
 
 export const profileRouter = Router();
 
-// GET /api/profile & GET /api/profile/me
+// GET /api/profile/me & GET /api/profile
 const handleGetProfile = async (req: Request, res: Response) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   try {
     const rawUserId = req.user?.id;
-    let user: any = null;
+    if (!rawUserId) {
+      return res.status(401).json({ error: "Unauthorized. Please log in." });
+    }
 
-    if (rawUserId) {
-      user = await prisma.user.findUnique({ where: { id: rawUserId } });
-    }
-    if (!user && req.user?.email) {
-      user = await prisma.user.findUnique({ where: { email: req.user.email } });
-    }
-    if (!user && req.user) {
-      const anonName = req.user.mysteryName || `AnonUser_${Math.floor(Math.random() * 9000 + 1000)}`;
-      try {
-        user = await prisma.user.create({
-          data: {
-            id: rawUserId && rawUserId.length > 5 ? rawUserId : undefined,
-            anonymousUsername: anonName,
-            email: req.user.email || `guest_${Date.now()}@finding.app`,
-            passwordHash: "auto_hash",
-            collegeName: (req.user as any).college || "Arya (MAIN), kukas",
-            role: req.user.role || "User",
-          },
-        });
-      } catch (_) {
-        user = await prisma.user.findFirst();
-      }
-    }
+    const user = await prisma.user.findUnique({
+      where: { id: rawUserId },
+    });
 
     if (!user) {
-      return res.status(404).json({ error: "User not found" });
+      return res.status(404).json({ error: "User profile not found." });
     }
 
     return res.json({
@@ -60,14 +42,13 @@ const handleGetProfile = async (req: Request, res: Response) => {
   }
 };
 
-profileRouter.get("/", optionalJwt, handleGetProfile);
-profileRouter.get("/me", optionalJwt, handleGetProfile);
+profileRouter.get("/", authenticateJwt, handleGetProfile);
+profileRouter.get("/me", authenticateJwt, handleGetProfile);
 
 // PUT /api/profile
-profileRouter.put("/", optionalJwt, async (req: Request, res: Response) => {
+profileRouter.put("/", authenticateJwt, async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) return res.status(401).json({ error: "Unauthorized" });
+    const userId = req.user!.id;
 
     const { name, secretName, gender, dob, college, branch, semester, mobile, avatarUrl } = req.body;
 

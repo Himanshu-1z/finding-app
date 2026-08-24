@@ -185,7 +185,7 @@ authRouter.post("/login", async (req: Request, res: Response) => {
     }
 
     const isValid = await bcrypt.compare(password, user.passwordHash);
-    if (!isValid && user.passwordHash !== "auto_hash" && password !== "Password123") {
+    if (!isValid) {
       return res.status(400).json({ error: "Invalid password." });
     }
 
@@ -277,15 +277,15 @@ authRouter.post("/send-email-verification", async (req: Request, res: Response) 
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
     const expiresAt = now + 15 * 60 * 1000; // 15 minutes TTL
 
-    emailOtpStore.set(email, { otp, expiresAt, lastSentAt: now });
-    console.log(`[EMAIL DISPATCH] Verification OTP for ${email}: ${otp}`);
+    emailOtpStore.set(cleanEmail, { otp, expiresAt, lastSentAt: now });
+    console.log(`[EMAIL DISPATCH] Verification OTP for ${cleanEmail}: ${otp}`);
 
     // Dispatch real email via SMTP if configured
     if (process.env.SMTP_USER && process.env.SMTP_PASS) {
       try {
         await mailTransporter.sendMail({
           from: process.env.SMTP_FROM || `"Finding Campus App" <${process.env.SMTP_USER}>`,
-          to: email,
+          to: cleanEmail,
           subject: "🔐 Your Finding Campus Verification OTP",
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 480px; margin: 0 auto; padding: 24px; border: 1px solid #e2e8f0; border-radius: 16px; background-color: #ffffff;">
@@ -298,18 +298,18 @@ authRouter.post("/send-email-verification", async (req: Request, res: Response) 
             </div>
           `,
         });
-        console.log(`[SMTP SUCCESS] Verification email sent to ${email}`);
+        console.log(`[SMTP SUCCESS] Verification email sent to ${cleanEmail}`);
       } catch (mailErr: any) {
         console.error("[SMTP ERROR]:", mailErr.message);
       }
     } else {
-      console.warn(`[OTP GENERATED (PREVIEW)] ${otp} for ${email} (Configure SMTP_USER & SMTP_PASS in Render Environment Variables for live Gmail delivery)`);
+      console.warn(`[OTP GENERATED (PREVIEW)] ${otp} for ${cleanEmail} (Configure SMTP_USER & SMTP_PASS in Render Environment Variables for live Gmail delivery)`);
     }
 
     return res.json({
       success: true,
       message: process.env.SMTP_USER && process.env.SMTP_PASS
-        ? `Verification code sent to ${email}. Please check your Gmail inbox.`
+        ? `Verification code sent to ${cleanEmail}. Please check your Gmail inbox.`
         : `Verification code sent! (Development/Preview OTP: ${otp})`,
       expiresInMinutes: 15,
       previewOtp: !(process.env.SMTP_USER && process.env.SMTP_PASS) ? otp : undefined,
@@ -327,13 +327,14 @@ authRouter.post("/verify-email-otp", async (req: Request, res: Response) => {
       return res.status(400).json({ error: "Email and verification code are required." });
     }
 
-    const record = emailOtpStore.get(email);
+    const cleanEmail = String(email).trim().toLowerCase();
+    const record = emailOtpStore.get(cleanEmail);
     if (!record) {
       return res.status(400).json({ error: "No verification code requested for this email." });
     }
 
     if (Date.now() > record.expiresAt) {
-      emailOtpStore.delete(email);
+      emailOtpStore.delete(cleanEmail);
       return res.status(410).json({ error: "Verification code has expired. Please request a new code." });
     }
 
@@ -342,7 +343,7 @@ authRouter.post("/verify-email-otp", async (req: Request, res: Response) => {
     }
 
     // Verification successful - consume code
-    emailOtpStore.delete(email);
+    emailOtpStore.delete(cleanEmail);
 
     return res.json({
       success: true,
@@ -444,14 +445,9 @@ authRouter.post("/upload-id", optionalJwt, async (req: Request, res: Response) =
         where: { anonymousUsername: { equals: String(mysteryName).trim(), mode: "insensitive" } },
       });
     }
-    if (!user) {
-      user = await prisma.user.findFirst({
-        orderBy: { createdAt: "desc" },
-      });
-    }
 
     if (!user) {
-      return res.status(404).json({ error: "User account not found." });
+      return res.status(404).json({ error: "User account not found. Please log in or complete registration before uploading ID." });
     }
 
     // Update user record with the ID photo

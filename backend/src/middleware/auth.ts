@@ -59,13 +59,11 @@ export const optionalJwt = (req: Request, res: Response, next: NextFunction) => 
 };
 
 export const requireAdmin = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.user || req.user.role !== "Admin") {
-    // If running in development admin mode, allow
-    if (req.headers["x-admin-auth"] === "true") {
+  authenticateJwt(req, res, () => {
+    if (req.user && (req.user.role === "Admin" || req.user.role === "Super Admin")) {
       return next();
     }
     return res.status(403).json({ error: "Forbidden. Admin access required." });
-  }
-  next();
+  });
 };
 

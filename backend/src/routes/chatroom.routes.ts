@@ -1,47 +1,14 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../prisma";
-import { optionalJwt } from "../middleware/auth";
+import { authenticateJwt } from "../middleware/auth";
 import { broadcastToChatRoom } from "../websocket/chatHub";
 
 export const chatRoomRouter = Router();
 
-// GET /api/chatroom
-chatRoomRouter.get("/", optionalJwt, async (req: Request, res: Response) => {
+// GET /api/chatroom — Get all active chat rooms for current user
+chatRoomRouter.get("/", authenticateJwt, async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) {
-      // Return all rooms if guest/dev
-      const allRooms = await prisma.chatRoom.findMany({
-        include: {
-          user1: true,
-          user2: true,
-          messages: { orderBy: { sentAt: "desc" }, take: 1 },
-        },
-        orderBy: { createdAt: "desc" },
-      });
-
-      return res.json(
-        allRooms.map((r) => {
-          const partnerName = r.user2?.anonymousUsername || "User 2";
-          const lastMsg = r.messages[0];
-          return {
-            id: r.id,
-            partnerId: r.user2Id,
-            name: partnerName,
-            partnerName,
-            letter: partnerName ? partnerName.charAt(0).toUpperCase() : "A",
-            status: "Online",
-            lastMessage: lastMsg ? lastMsg.content : "Connected! Say hello",
-            time: lastMsg ? new Date(lastMsg.sentAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }) : "Recently",
-            unread: false,
-            isActive: r.isActive,
-            createdAt: r.createdAt,
-            user1: { id: r.user1Id, name: r.user1?.anonymousUsername },
-            user2: { id: r.user2Id, name: r.user2?.anonymousUsername },
-          };
-        })
-      );
-    }
+    const userId = req.user!.id;
 
     const rooms = await prisma.chatRoom.findMany({
       where: {
@@ -102,18 +69,11 @@ function getTimeAgo(date: Date | string) {
 }
 
 // GET /api/chatroom/:id
-chatRoomRouter.get("/:id", optionalJwt, async (req: Request, res: Response) => {
+chatRoomRouter.get("/:id", authenticateJwt, async (req: Request, res: Response) => {
   try {
     const chatRoomId = String(req.params.id);
-    let currentUserId = req.user?.id;
-    if (!currentUserId && req.user?.mysteryName) {
-      const u = await prisma.user.findUnique({ where: { anonymousUsername: req.user.mysteryName } });
-      if (u) currentUserId = u.id;
-    }
-    if (!currentUserId && req.user?.email) {
-      const u = await prisma.user.findUnique({ where: { email: req.user.email } });
-      if (u) currentUserId = u.id;
-    }
+    const currentUserId = req.user!.id;
+    const userRole = req.user?.role;
 
     const room = await prisma.chatRoom.findUnique({
       where: { id: chatRoomId },
@@ -121,6 +81,11 @@ chatRoomRouter.get("/:id", optionalJwt, async (req: Request, res: Response) => {
     });
 
     if (!room) return res.status(404).json({ error: "Room not found" });
+
+    const isParticipant = room.user1Id === currentUserId || room.user2Id === currentUserId || userRole === "Admin" || userRole === "Super Admin";
+    if (!isParticipant) {
+      return res.status(403).json({ error: "Access forbidden. You are not a participant in this room." });
+    }
 
     const isUser1 = room.user1Id === currentUserId;
     const partner = isUser1 ? room.user2 : room.user1;
@@ -142,17 +107,21 @@ chatRoomRouter.get("/:id", optionalJwt, async (req: Request, res: Response) => {
 });
 
 // GET /api/chatroom/:id/messages
-chatRoomRouter.get("/:id/messages", optionalJwt, async (req: Request, res: Response) => {
+chatRoomRouter.get("/:id/messages", authenticateJwt, async (req: Request, res: Response) => {
   try {
     const chatRoomId = String(req.params.id);
-    let currentUserId = req.user?.id;
-    if (!currentUserId && req.user?.mysteryName) {
-      const u = await prisma.user.findUnique({ where: { anonymousUsername: req.user.mysteryName } });
-      if (u) currentUserId = u.id;
-    }
-    if (!currentUserId && req.user?.email) {
-      const u = await prisma.user.findUnique({ where: { email: req.user.email } });
-      if (u) currentUserId = u.id;
+    const currentUserId = req.user!.id;
+    const userRole = req.user?.role;
+
+    const room = await prisma.chatRoom.findUnique({
+      where: { id: chatRoomId },
+    });
+
+    if (!room) return res.status(404).json({ error: "Room not found" });
+
+    const isParticipant = room.user1Id === currentUserId || room.user2Id === currentUserId || userRole === "Admin" || userRole === "Super Admin";
+    if (!isParticipant) {
+      return res.status(403).json({ error: "Access forbidden. You are not a participant in this room." });
     }
 
     const messages = await prisma.chatMessage.findMany({
@@ -181,24 +150,27 @@ chatRoomRouter.get("/:id/messages", optionalJwt, async (req: Request, res: Respo
 });
 
 // POST /api/chatroom/:id/messages
-chatRoomRouter.post("/:id/messages", optionalJwt, async (req: Request, res: Response) => {
+chatRoomRouter.post("/:id/messages", authenticateJwt, async (req: Request, res: Response) => {
   try {
     const chatRoomId = String(req.params.id);
-    let senderId = req.user?.id;
+    const senderId = req.user!.id;
     const { content } = req.body;
 
-    let sender: any = null;
-    if (senderId) {
-      sender = await prisma.user.findUnique({ where: { id: senderId } });
+    const room = await prisma.chatRoom.findUnique({
+      where: { id: chatRoomId },
+    });
+
+    if (!room) {
+      return res.status(404).json({ error: "Chat room not found." });
     }
 
+    if (room.user1Id !== senderId && room.user2Id !== senderId && req.user?.role !== "Admin" && req.user?.role !== "Super Admin") {
+      return res.status(403).json({ error: "Forbidden. You cannot send messages to this chat room." });
+    }
+
+    const sender = await prisma.user.findUnique({ where: { id: senderId } });
     if (!sender) {
-      const room = await prisma.chatRoom.findUnique({
-        where: { id: chatRoomId },
-        include: { user1: true },
-      });
-      sender = (room as any)?.user1 || (await prisma.user.findFirst());
-      senderId = sender?.id || "";
+      return res.status(404).json({ error: "Sender account not found." });
     }
 
     const message = await prisma.chatMessage.create({
@@ -216,7 +188,7 @@ chatRoomRouter.post("/:id/messages", optionalJwt, async (req: Request, res: Resp
       chatRoomId,
       senderId: message.senderId,
       sender: "them",
-      senderName: (message as any).sender?.anonymousUsername || "Anonymous",
+      senderName: sender.anonymousUsername || "Anonymous",
       content: message.content,
       text: message.content,
       sentAt: message.sentAt.toISOString(),
@@ -232,7 +204,7 @@ chatRoomRouter.post("/:id/messages", optionalJwt, async (req: Request, res: Resp
       id: message.id,
       senderId: message.senderId,
       sender: "me",
-      senderName: (message as any).sender?.anonymousUsername || "Anonymous",
+      senderName: sender.anonymousUsername || "Anonymous",
       content: message.content,
       text: message.content,
       sentAt: message.sentAt.toISOString(),

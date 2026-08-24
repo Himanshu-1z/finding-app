@@ -1,6 +1,6 @@
 import { Router, Request, Response } from "express";
 import { prisma } from "../prisma";
-import { optionalJwt } from "../middleware/auth";
+import { authenticateJwt, optionalJwt } from "../middleware/auth";
 import { emitToUser, broadcastGlobal } from "../websocket/chatHub";
 
 export const interactionRouter = Router();
@@ -102,10 +102,10 @@ interactionRouter.get("/my", optionalJwt, async (req: Request, res: Response) =>
 });
 
 // POST /api/interaction/respond
-interactionRouter.post("/respond", optionalJwt, async (req: Request, res: Response) => {
+interactionRouter.post("/respond", authenticateJwt, async (req: Request, res: Response) => {
   try {
     const { confessionId, response } = req.body;
-    const rawUserId = req.user?.id;
+    const userId = req.user!.id;
 
     const confession = await prisma.confession.findUnique({
       where: { id: confessionId },
@@ -115,26 +115,9 @@ interactionRouter.post("/respond", optionalJwt, async (req: Request, res: Respon
       return res.status(404).json({ error: "Confession not found." });
     }
 
-    let user: any = null;
-    if (rawUserId) {
-      user = await prisma.user.findUnique({ where: { id: rawUserId } });
-    }
-    if (!user && req.user?.email) {
-      user = await prisma.user.findUnique({ where: { email: req.user.email } });
-    }
-    if (!user && req.user?.mysteryName) {
-      user = await prisma.user.findUnique({ where: { anonymousUsername: req.user.mysteryName } });
-    }
-
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
-      const chosenName = req.user?.mysteryName || "User_" + Math.random().toString(36).substring(2, 7);
-      user = await prisma.user.create({
-        data: {
-          anonymousUsername: chosenName,
-          email: req.user?.email || `guest_${Date.now()}@finding.app`,
-          passwordHash: "auto_hash",
-        },
-      });
+      return res.status(404).json({ error: "User account not found." });
     }
 
     if (confession.authorId === user.id) {
@@ -207,9 +190,12 @@ interactionRouter.post("/respond", optionalJwt, async (req: Request, res: Respon
 });
 
 // POST /api/interaction/confessor-action
-interactionRouter.post("/confessor-action", optionalJwt, async (req: Request, res: Response) => {
+interactionRouter.post("/confessor-action", authenticateJwt, async (req: Request, res: Response) => {
   try {
     const { interactionRequestId, action } = req.body;
+    const currentUserId = req.user!.id;
+    const userRole = req.user?.role;
+
     // 2=Accepted, 3=Declined
     const statusStr = action === 2 || action === "2" || action === "Accepted" ? "Accepted" : "Declined";
 
@@ -219,6 +205,10 @@ interactionRouter.post("/confessor-action", optionalJwt, async (req: Request, re
     });
     if (!interaction) {
       return res.status(404).json({ error: "Interaction request not found." });
+    }
+
+    if (interaction.confessorId !== currentUserId && interaction.targetUserId !== currentUserId && userRole !== "Admin" && userRole !== "Super Admin") {
+      return res.status(403).json({ error: "Forbidden. You are not authorized to accept or decline this request." });
     }
 
     await prisma.interactionRequest.update({

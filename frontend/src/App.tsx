@@ -22,6 +22,7 @@ import { Activity } from "./pages/Activity";
 import { Profile } from "./pages/Profile";
 import { Chat } from "./pages/Chat";
 import { ChatList } from "./pages/ChatList";
+import { Search } from "./pages/Search";
 
 import { AdminModule } from "./admin/App";
 
@@ -66,6 +67,8 @@ export default function App() {
               <Route path="/choose-path" element={<ChoosePath />} />
               <Route path="/activity" element={<Activity />} />
               <Route path="/profile" element={<Profile />} />
+              <Route path="/search" element={<Search />} />
+              <Route path="/discover" element={<Search />} />
               <Route path="/chats" element={<ChatList />} />
               <Route path="/chat" element={<ChatList />} />
               <Route path="/chat/:id" element={<Chat />} />

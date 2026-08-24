@@ -10,9 +10,9 @@ import { interactionRouter } from "./routes/interaction.routes";
 import { chatRoomRouter } from "./routes/chatroom.routes";
 import { adminRouter } from "./routes/admin.routes";
 import { verificationRouter } from "./routes/verification.routes";
-import { paymentRouter } from "./routes/payment.routes";
 import { profileRouter } from "./routes/profile.routes";
 import { notificationRouter } from "./routes/notification.routes";
+import { prisma } from "./prisma";
 
 dotenv.config();
 
@@ -83,13 +83,53 @@ app.use("/api/interaction", interactionRouter);
 app.use("/api/chatroom", chatRoomRouter);
 app.use("/api/admin", adminRouter);
 app.use("/api/verification", verificationRouter);
-app.use("/api/payment", paymentRouter);
 app.use("/api/profile", profileRouter);
 app.use("/api/notifications", notificationRouter);
 
+// GET /api/discover — Student discovery & suggestions endpoint
+app.get("/api/discover", async (req: Request, res: Response) => {
+  try {
+    const page = Math.max(1, Number(req.query.page) || 1);
+    const pageSize = Math.min(50, Math.max(1, Number(req.query.pageSize) || 10));
+    const skip = (page - 1) * pageSize;
+
+    const users = await prisma.user.findMany({
+      where: { isActive: true },
+      take: pageSize,
+      skip,
+      orderBy: { createdAt: "desc" },
+    });
+
+    const items = users.map((u) => {
+      let interests = ["Campus Life", "Music", "Coding", "Gaming"];
+      if (u.bio && u.bio.includes(",")) {
+        interests = u.bio.split(",").map((s) => s.trim()).filter(Boolean);
+      } else if (u.bio && u.bio.trim()) {
+        interests = [u.bio.trim()];
+      }
+
+      return {
+        id: u.id,
+        mysteryName: u.anonymousUsername,
+        realName: u.realName,
+        college: u.collegeName || "Campus",
+        branch: u.branch || "Student",
+        yearSemester: u.yearSemester || "1",
+        capturedIdImage: u.studentIdPhotoUrl || null,
+        isVerifiedBadge: u.isVerifiedBadge,
+        interests,
+      };
+    });
+
+    return res.json({ items, page, pageSize, total: items.length });
+  } catch (err: any) {
+    return res.json({ items: [], page: 1, pageSize: 10, total: 0 });
+  }
+});
+
 // Health check
 app.get("/api/health", (req: Request, res: Response) => {
-  res.json({ status: "healthy", timestamp: new Date().toISOString(), runtime: "Node.js + Express + Prisma" });
+  res.json({ status: "healthy", timestamp: new Date().toISOString(), runtime: "Node.js + Express + Prisma (100% Free Campus Platform)" });
 });
 
 // Serve frontend production build if available

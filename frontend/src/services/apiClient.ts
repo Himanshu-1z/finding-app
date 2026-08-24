@@ -283,22 +283,6 @@ export const chatService = {
   },
 };
 
-export const paymentService = {
-  initiate: async (chatRoomId: string) => {
-    return apiFetch("/payment/initiate", {
-      method: "POST",
-      body: JSON.stringify({ chatRoomId }),
-    });
-  },
-
-  confirm: async (paymentId: string, transactionRef: string) => {
-    return apiFetch("/payment/confirm", {
-      method: "POST",
-      body: JSON.stringify({ paymentId, transactionRef }),
-    });
-  },
-};
-
 const HUB_URL = API_BASE_URL.replace("/api", "") + "/hubs/chat";
 
 class RealtimeChatClient {

@@ -53,6 +53,35 @@ adminRouter.post("/auth/login", async (req: Request, res: Response) => {
   return res.status(401).json({ error: "Invalid admin credentials." });
 });
 
+// Admin Route Protection Middleware
+adminRouter.use((req: Request, res: Response, next) => {
+  if (req.path === "/auth/login") return next();
+
+  const authHeader = req.headers.authorization;
+  const token = authHeader && authHeader.startsWith("Bearer ") ? authHeader.substring(7) : (req.query.access_token as string);
+
+  if (token) {
+    try {
+      const decoded = jwt.verify(token, JWT_SECRET) as any;
+      if (decoded.role === "Admin" || decoded.role === "Super Admin") {
+        req.user = {
+          id: decoded.uid || decoded.id || "admin",
+          email: decoded.email || "admin@finding.app",
+          role: decoded.role,
+        };
+        return next();
+      }
+    } catch (_) {}
+  }
+
+  // Allow read-only public status overview for dashboard health check if needed
+  if (req.method === "GET" && (req.path === "/stats" || req.path === "/stats/overview" || req.path === "/activity-log")) {
+    return next();
+  }
+
+  return res.status(403).json({ error: "Forbidden. Admin authorization required." });
+});
+
 // GET /api/admin/stats & /api/admin/stats/overview
 const handleGetStats = async (req: Request, res: Response) => {
   try {
