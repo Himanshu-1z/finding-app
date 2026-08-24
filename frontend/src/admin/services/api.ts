@@ -1,7 +1,9 @@
 import { UserProfile, Confession, DashboardStats, ConnectionRequest, ChatThread, StaffAdmin, SystemSettings, AuditLog } from '../types/models';
 
 const USE_MOCKS = import.meta.env.VITE_USE_MOCKS === 'true';
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || (typeof window !== "undefined" ? `http://${window.location.hostname || "localhost"}:5000/api/admin` : "http://localhost:5000/api/admin");
+const RAW_API = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || '').trim();
+const API_ROOT = RAW_API || (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1" ? "https://finding-backend-js.onrender.com/api" : "http://localhost:5000/api");
+const BASE_URL = API_ROOT.endsWith("/admin") ? API_ROOT : `${API_ROOT.replace(/\/+$/, "")}/admin`;
 
 
 // Mocks

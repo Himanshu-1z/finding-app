@@ -1,4 +1,5 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || (typeof window !== "undefined" ? `http://${window.location.hostname || "localhost"}:5000/api` : "http://localhost:5000/api");
+const RAW_URL = (import.meta.env.VITE_API_URL || import.meta.env.VITE_API_BASE_URL || "").trim();
+const API_BASE_URL = RAW_URL || (typeof window !== "undefined" && window.location.hostname !== "localhost" && window.location.hostname !== "127.0.0.1" ? "https://finding-backend-js.onrender.com/api" : "http://localhost:5000/api");
 
 
 export interface ApiResponse<T = any> {
