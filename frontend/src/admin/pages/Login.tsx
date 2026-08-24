@@ -69,7 +69,7 @@ export default function Login() {
                   value={username}
                   onChange={e => setUsername(e.target.value)}
                   required
-                  placeholder="admin or admin@finding.app"
+                  placeholder="himanshumishra1601@gmail.com or admin"
                   className="w-full pl-10 pr-4 py-3 neo-inset rounded-xl text-sm text-[var(--color-on-surface)] bg-transparent focus:outline-none focus:ring-2 focus:ring-[var(--color-primary)]/40"
                 />
               </div>

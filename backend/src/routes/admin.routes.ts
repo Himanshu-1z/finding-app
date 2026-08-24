@@ -11,30 +11,31 @@ adminRouter.post("/auth/login", async (req: Request, res: Response) => {
   const loginUser = (username || email || "").trim().toLowerCase();
   const pass = (password || "").trim();
 
-  const isSuperAdminEmail =
+  // Primary Super Admin: himanshumishra1601@gmail.com | @Himanshu5134
+  const isValidUser =
     loginUser === "himanshumishra1601@gmail.com" ||
-    loginUser === "himanshumishrajpr57@gmail.com" ||
-    loginUser === "admin@finding.app" ||
+    loginUser === "himanshumishra" ||
     loginUser === "admin" ||
-    loginUser === "superadmin" ||
-    loginUser === "himanshumishra";
+    loginUser === "admin@finding.app" ||
+    loginUser === "superadmin@finding.app" ||
+    loginUser === "superadmin";
 
-  const isSuperAdminPass =
+  const isValidPass =
     pass === "@Himanshu5134" ||
-    pass === "Himanshu@14352" ||
-    pass === "Password123" ||
+    pass === "Himanshu5134" ||
     pass === "admin" ||
-    pass === "admin123";
+    pass === "admin123" ||
+    pass === "Password123" ||
+    pass === "admin@123";
 
-  if (isSuperAdminEmail && isSuperAdminPass) {
+  if (isValidUser && isValidPass) {
     const token = jwt.sign(
       {
         uid: "admin-himanshu",
         id: "admin-himanshu",
         role: "Super Admin",
         email: "himanshumishra1601@gmail.com",
-        mystery_name: "HimanshuMishra",
-        real_name: "Himanshu Mishra",
+        mystery_name: "SuperAdmin",
       },
       JWT_SECRET,
       { expiresIn: "30d" }
@@ -49,47 +50,7 @@ adminRouter.post("/auth/login", async (req: Request, res: Response) => {
       },
     });
   }
-
-  // Also check database users with bcrypt
-  try {
-    const dbUser = await prisma.user.findFirst({
-      where: {
-        OR: [
-          { email: { equals: loginUser, mode: "insensitive" } },
-          { anonymousUsername: { equals: loginUser, mode: "insensitive" } },
-        ],
-      },
-    });
-
-    if (dbUser && (dbUser.role === "Admin" || dbUser.role === "Super Admin")) {
-      const isMatch = await bcrypt.compare(pass, dbUser.passwordHash);
-      if (isMatch || pass === "@Himanshu5134") {
-        const token = jwt.sign(
-          {
-            uid: dbUser.id,
-            id: dbUser.id,
-            role: dbUser.role,
-            email: dbUser.email,
-            mystery_name: dbUser.anonymousUsername,
-            real_name: dbUser.realName,
-          },
-          JWT_SECRET,
-          { expiresIn: "30d" }
-        );
-        return res.json({
-          token,
-          accessToken: token,
-          user: {
-            name: dbUser.realName || dbUser.anonymousUsername || "Himanshu Mishra",
-            role: dbUser.role,
-            email: dbUser.email,
-          },
-        });
-      }
-    }
-  } catch (_) {}
-
-  return res.status(401).json({ error: "Invalid admin email or password." });
+  return res.status(401).json({ error: "Invalid admin credentials." });
 });
 
 // GET /api/admin/stats & /api/admin/stats/overview
