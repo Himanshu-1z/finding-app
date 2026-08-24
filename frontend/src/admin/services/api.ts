@@ -104,12 +104,10 @@ export const api = {
         if (data && Array.isArray(data.users)) return data;
         if (Array.isArray(data)) return { users: data, total: data.length };
       }
-    } catch (_) {}
-
-    let filtered = [...mockUsers];
-    if (status) filtered = filtered.filter(u => u.status === status);
-    if (search) filtered = filtered.filter(u => u.name.toLowerCase().includes(search.toLowerCase()) || u.secretName.toLowerCase().includes(search.toLowerCase()) || u.email.toLowerCase().includes(search.toLowerCase()));
-    return { users: filtered, total: filtered.length };
+    } catch (e) {
+      console.error("Admin fetch users error:", e);
+    }
+    return { users: [], total: 0 };
   },
 
   createUser: async (userData: Partial<UserProfile>): Promise<UserProfile> => {
@@ -189,11 +187,10 @@ export const api = {
         const data = await res.json();
         if (data && Array.isArray(data.confessions)) return data;
       }
-    } catch (_) {}
-
-    let filtered = [...mockConfessions];
-    if (status) filtered = filtered.filter(c => c.status === status);
-    return { confessions: filtered, total: filtered.length };
+    } catch (e) {
+      console.error("Admin fetch confessions error:", e);
+    }
+    return { confessions: [], total: 0 };
   },
 
   createOfficialConfession: async (content: string, type: 'public' | 'tagged', targetPerson?: string): Promise<Confession> => {

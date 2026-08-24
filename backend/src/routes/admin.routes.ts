@@ -11,21 +11,43 @@ adminRouter.post("/auth/login", async (req: Request, res: Response) => {
   const loginUser = (username || email || "").trim().toLowerCase();
   const pass = (password || "").trim();
 
-  if (
-    (loginUser === "admin" || loginUser === "admin@finding.app" || loginUser === "superadmin@finding.app" || loginUser === "superadmin") &&
-    (pass === "admin" || pass === "admin123" || pass === "Password123" || pass === "admin@123")
-  ) {
+  const isSuperAdminEmail =
+    loginUser === "himanshumishra1601@gmail.com" ||
+    loginUser === "himanshumishrajpr57@gmail.com" ||
+    loginUser === "admin@finding.app" ||
+    loginUser === "admin" ||
+    loginUser === "superadmin";
+
+  const isSuperAdminPass =
+    pass === "@Himanshu5134" ||
+    pass === "Himanshu@14352" ||
+    pass === "Password123" ||
+    pass === "admin";
+
+  if (isSuperAdminEmail && isSuperAdminPass) {
     const token = jwt.sign(
-      { uid: "admin-super", role: "Admin", email: "admin@finding.app", mystery_name: "SuperAdmin" },
+      {
+        uid: "admin-himanshu",
+        id: "admin-himanshu",
+        role: "Super Admin",
+        email: "himanshumishra1601@gmail.com",
+        mystery_name: "HimanshuMishra",
+        real_name: "Himanshu Mishra",
+      },
       JWT_SECRET,
       { expiresIn: "30d" }
     );
     return res.json({
       token,
-      user: { name: "Super Admin", role: "Super Admin", email: "admin@finding.app" },
+      accessToken: token,
+      user: {
+        name: "Himanshu Mishra",
+        role: "Super Admin",
+        email: "himanshumishra1601@gmail.com",
+      },
     });
   }
-  return res.status(401).json({ error: "Invalid admin credentials." });
+  return res.status(401).json({ error: "Invalid admin email or password." });
 });
 
 // GET /api/admin/stats & /api/admin/stats/overview
