@@ -135,58 +135,58 @@ export default function Users() {
       </header>
 
       {/* Quick Metrics Bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 shrink-0">
-        <div className="p-3.5 bg-surface rounded-2xl neo-outset flex items-center justify-between">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 shrink-0">
+        <div className="p-2.5 sm:p-3 bg-surface rounded-xl neo-outset flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Total Students</span>
-            <p className="text-xl font-extrabold text-on-surface mt-0.5">{users.length}</p>
+            <p className="text-lg sm:text-xl font-extrabold text-on-surface mt-0.5">{users.length}</p>
           </div>
-          <User className="w-7 h-7 text-primary opacity-80" />
+          <User className="w-6 h-6 text-primary opacity-80" />
         </div>
 
-        <div className="p-3.5 bg-surface rounded-2xl neo-outset flex items-center justify-between">
+        <div className="p-2.5 sm:p-3 bg-surface rounded-xl neo-outset flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Verified Badges</span>
-            <p className="text-xl font-extrabold text-blue-600 mt-0.5">
+            <p className="text-lg sm:text-xl font-extrabold text-blue-600 mt-0.5">
               {users.filter(u => u.isVerifiedBadge).length}
             </p>
           </div>
-          <ShieldCheck className="w-7 h-7 text-blue-500 opacity-80" />
+          <ShieldCheck className="w-6 h-6 text-blue-500 opacity-80" />
         </div>
 
-        <div className="p-3.5 bg-surface rounded-2xl neo-outset flex items-center justify-between">
+        <div className="p-2.5 sm:p-3 bg-surface rounded-xl neo-outset flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Pending IDs</span>
-            <p className="text-xl font-extrabold text-amber-600 mt-0.5">
+            <p className="text-lg sm:text-xl font-extrabold text-amber-600 mt-0.5">
               {users.filter(u => u.status === 'pending_verification' || !u.isVerifiedBadge).length}
             </p>
           </div>
-          <Award className="w-7 h-7 text-amber-500 opacity-80" />
+          <Award className="w-6 h-6 text-amber-500 opacity-80" />
         </div>
 
-        <div className="p-3.5 bg-surface rounded-2xl neo-outset flex items-center justify-between">
+        <div className="p-2.5 sm:p-3 bg-surface rounded-xl neo-outset flex items-center justify-between">
           <div>
             <span className="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Active Accounts</span>
-            <p className="text-xl font-extrabold text-emerald-600 mt-0.5">
+            <p className="text-lg sm:text-xl font-extrabold text-emerald-600 mt-0.5">
               {users.filter(u => u.status === 'active').length}
             </p>
           </div>
-          <CheckCircle className="w-7 h-7 text-emerald-500 opacity-80" />
+          <CheckCircle className="w-6 h-6 text-emerald-500 opacity-80" />
         </div>
       </div>
 
-      <div className="flex items-center gap-3 bg-[var(--color-surface)] p-3 rounded-2xl neo-outset shrink-0">
-        <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center bg-[var(--color-surface-container)] rounded-xl px-3.5 py-1.5 neo-inset">
+      <div className="flex items-center gap-2.5 bg-[var(--color-surface)] p-2.5 rounded-xl neo-outset shrink-0">
+        <form onSubmit={handleSearchSubmit} className="flex-1 flex items-center bg-[var(--color-surface-container)] rounded-lg px-3 py-1.5 neo-inset">
           <Search className="w-4 h-4 text-[var(--color-on-surface-variant)]" />
           <input
             type="text"
             placeholder="Search by real name, secret name, college, or email..."
             value={search}
             onChange={e => setSearch(e.target.value)}
-            className="flex-1 bg-transparent border-none outline-none px-2.5 py-1 text-xs text-[var(--color-on-surface)] placeholder-[var(--color-on-surface-variant)]"
+            className="flex-1 bg-transparent border-none outline-none px-2.5 py-0.5 text-xs text-[var(--color-on-surface)] placeholder-[var(--color-on-surface-variant)]"
           />
         </form>
-        <div className="flex items-center gap-2 bg-[var(--color-surface-container)] rounded-xl px-3 py-1.5 neo-inset">
+        <div className="flex items-center gap-2 bg-[var(--color-surface-container)] rounded-lg px-3 py-1.5 neo-inset">
           <Filter className="w-4 h-4 text-[var(--color-on-surface-variant)]" />
           <select
             value={statusFilter}
@@ -201,8 +201,8 @@ export default function Users() {
         </div>
       </div>
 
-      {/* Main Spacious Directory Box */}
-      <div className="flex-1 min-h-0 neo-outset flex flex-col rounded-3xl overflow-hidden shadow-xs bg-surface">
+      {/* Main Expanded User Directory Workspace (Occupying 70-75% of available viewport) */}
+      <div className="flex-1 min-h-[520px] lg:min-h-[580px] neo-outset flex flex-col rounded-3xl overflow-hidden shadow-xs bg-surface">
         <div className="px-5 py-3.5 border-b border-[var(--color-surface-variant)] flex justify-between items-center bg-surface shrink-0">
           <div className="flex items-center gap-3">
             <h2 className="text-base font-bold text-[var(--color-primary)]">Expanded User Directory ({users.length})</h2>
@@ -225,11 +225,11 @@ export default function Users() {
             <p className="text-sm font-bold">No students found matching current filters.</p>
           </div>
         ) : (
-          <div className="flex-1 min-h-0 overflow-y-auto neo-inset m-3 p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 rounded-2xl auto-rows-max">
+          <div className="flex-1 min-h-0 overflow-y-auto neo-inset m-3 p-4 sm:p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5 rounded-2xl auto-rows-max">
             {users.map(user => (
               <div 
                 key={user.id} 
-                className="bg-white/80 hover:bg-white transition-all p-5 rounded-2xl border border-white/80 shadow-sm flex flex-col justify-between gap-4 cursor-pointer hover:shadow-md group"
+                className="bg-white/85 hover:bg-white transition-all p-5 sm:p-6 rounded-2xl border border-white/80 shadow-xs flex flex-col justify-between gap-4 cursor-pointer hover:shadow-md group min-h-[290px]"
                 onClick={() => {
                   setSelectedUser(user);
                   setIsEditing(false);
@@ -237,9 +237,9 @@ export default function Users() {
               >
                 <div>
                   {/* Top Header: Avatar + Anonymous Handle + Verified + Status Badge */}
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-13 h-13 neo-outset rounded-2xl overflow-hidden flex items-center justify-center font-bold text-lg text-[var(--color-primary)] bg-[var(--color-surface)] relative flex-shrink-0 border-2 border-primary/20">
+                  <div className="flex items-start justify-between gap-3 mb-3.5">
+                    <div className="flex items-center gap-3.5">
+                      <div className="w-14 h-14 neo-outset rounded-2xl overflow-hidden flex items-center justify-center font-bold text-lg text-[var(--color-primary)] bg-[var(--color-surface)] relative flex-shrink-0 border-2 border-primary/20">
                         {user.capturedIdImage ? (
                           <img src={user.capturedIdImage} alt={user.secretName} className="w-full h-full object-cover" />
                         ) : (
@@ -265,7 +265,7 @@ export default function Users() {
                             </span>
                           )}
                         </div>
-                        <p className="text-xs font-semibold text-on-surface-variant truncate">
+                        <p className="text-xs font-semibold text-on-surface-variant truncate mt-0.5">
                           {user.name ? user.name : <span className="italic opacity-60">No real name set</span>}
                         </p>
                       </div>
@@ -281,7 +281,7 @@ export default function Users() {
                   </div>
 
                   {/* Academic & Contact Details Pills */}
-                  <div className="space-y-1.5 text-xs bg-surface-container-low p-3 rounded-xl border border-outline-variant/40">
+                  <div className="space-y-2 text-xs bg-surface-container-low p-3.5 rounded-xl border border-outline-variant/40">
                     <div className="flex items-center justify-between text-on-surface font-medium truncate">
                       <span className="text-on-surface-variant text-[11px]">🏫 College:</span>
                       <span className="font-bold truncate max-w-[170px]">{user.college || "Arya (MAIN), kukas"}</span>
@@ -309,7 +309,7 @@ export default function Users() {
                 </div>
 
                 {/* Direct Action Buttons */}
-                <div className="pt-2 border-t border-outline-variant/30 flex items-center justify-between gap-2">
+                <div className="pt-2.5 border-t border-outline-variant/30 flex items-center justify-between gap-2">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
