@@ -44,7 +44,7 @@ export function Profile() {
     confessionService
       .getMyConfessions()
       .then((items: any) => {
-        if (Array.isArray(items)) {
+        if (Array.isArray(items) && items.length > 0) {
           setMyConfessions(
             items.map((item: any) => ({
               id: item.id,
@@ -64,11 +64,22 @@ export function Profile() {
               isMine: true,
             }))
           );
+        } else {
+          const mySecret = (user?.secretName || "").toLowerCase();
+          const myReal = (user?.name || "").toLowerCase();
+          const localMine = allConfessions.filter(
+            (c) => c.isMine || (mySecret && (c.author || "").toLowerCase() === mySecret) || (myReal && (c.author || "").toLowerCase() === myReal)
+          );
+          setMyConfessions(localMine);
         }
       })
       .catch((err) => {
         console.warn("My confessions fetch notice:", err);
-        setMyConfessions(allConfessions.filter((c) => c.isMine || c.author === user?.secretName));
+        const mySecret = (user?.secretName || "").toLowerCase();
+        const myReal = (user?.name || "").toLowerCase();
+        setMyConfessions(
+          allConfessions.filter((c) => c.isMine || (mySecret && (c.author || "").toLowerCase() === mySecret) || (myReal && (c.author || "").toLowerCase() === myReal))
+        );
       })
       .finally(() => {
         setLoadingPosts(false);

@@ -145,11 +145,22 @@ function appReducer(state: AppState, action: AppAction): AppState {
           .map(r => r.confessionId || r.id)
       );
 
+      const userSecret = (state.user?.secretName || "").toLowerCase();
+      const userReal = (state.user?.name || "").toLowerCase();
+
       const merged = action.confessions.map(c => {
         const isLocallyRequested = locallyRequestedIds.has(c.id);
         const isDeclined = declinedConfessionIds.has(c.id);
+        const authorLower = (c.author || "").toLowerCase();
+        const isMine = Boolean(
+          c.isMine ||
+          (userSecret && authorLower === userSecret) ||
+          (userReal && authorLower === userReal)
+        );
+
         return {
           ...c,
+          isMine,
           isRequested: !isDeclined && (c.isRequested || isLocallyRequested)
         };
       });

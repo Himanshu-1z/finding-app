@@ -87,6 +87,7 @@ const handleGetFeed = async (req: Request, res: Response) => {
     const mapped = confessions.map((c) => {
       const isLiked = userId ? c.likes.some((l) => l.userId === userId) : false;
       const isRequested = userId ? userRequestsSet.has(c.id) : false;
+      const isMine = userId ? c.authorId === userId : (userMysteryName && c.author?.anonymousUsername?.toLowerCase() === userMysteryName.toLowerCase());
       return {
         id: c.id,
         content: c.content,
@@ -100,6 +101,7 @@ const handleGetFeed = async (req: Request, res: Response) => {
         likes: c.likes.length,
         likedByMe: isLiked,
         isRequested: isRequested,
+        isMine: Boolean(isMine),
         type: c.type,
         targetPerson: c.targetPerson,
         isPinned: c.isPinned,

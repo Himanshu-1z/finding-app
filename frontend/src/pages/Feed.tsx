@@ -60,6 +60,7 @@ export function Feed() {
               likes: item.likes ?? item.likesCount ?? 0,
               likedByMe: Boolean(item.likedByMe),
               isRequested: Boolean(item.isRequested),
+              isMine: Boolean(item.isMine),
               type: item.type === "tagged" ? ("tagged" as const) : ("public" as const),
               authorCollege: item.authorCollege || item.collegeName || "Arya (MAIN), kukas",
               authorBranch: item.authorBranch || item.branch || "CS",
