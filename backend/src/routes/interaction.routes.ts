@@ -6,36 +6,18 @@ import { emitToUser, broadcastGlobal } from "../websocket/chatHub";
 export const interactionRouter = Router();
 
 // GET /api/interaction/my
-interactionRouter.get("/my", optionalJwt, async (req: Request, res: Response) => {
+interactionRouter.get("/my", authenticateJwt, async (req: Request, res: Response) => {
   res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
   try {
-    const rawUserId = req.user?.id;
-    let user: any = null;
-
-    if (rawUserId) {
-      user = await prisma.user.findUnique({ where: { id: rawUserId } });
-    }
-    if (!user && req.user?.email) {
-      user = await prisma.user.findUnique({ where: { email: req.user.email } });
-    }
-    if (!user && req.user?.mysteryName) {
-      user = await prisma.user.findUnique({ where: { anonymousUsername: req.user.mysteryName } });
+    const userId = req.user!.id;
+    const dbUser = await prisma.user.findUnique({ where: { id: userId } });
+    if (!dbUser) {
+      return res.status(401).json({ error: "Unauthorized user." });
     }
 
-    const currentUserId = user?.id || rawUserId;
-    if (!currentUserId) {
-      return res.json({ incoming: [], outgoing: [], value: [], count: 0 });
-    }
-
-    const currentMystery = user?.anonymousUsername || req.user?.mysteryName;
-
-    const incomingRequests = await prisma.interactionRequest.findMany({
+    const allRequests = await prisma.interactionRequest.findMany({
       where: {
-        OR: [
-          { confessorId: currentUserId },
-          ...(currentMystery ? [{ confessor: { anonymousUsername: currentMystery } }] : []),
-          ...(user?.email ? [{ confessor: { email: user.email } }] : []),
-        ],
+        OR: [{ confessorId: dbUser.id }, { targetUserId: dbUser.id }],
       },
       include: {
         targetUser: true,
@@ -46,48 +28,76 @@ interactionRouter.get("/my", optionalJwt, async (req: Request, res: Response) =>
       orderBy: { createdAt: "desc" },
     });
 
-    const outgoingRequests = await prisma.interactionRequest.findMany({
-      where: {
-        OR: [
-          { targetUserId: currentUserId },
-          ...(currentMystery ? [{ targetUser: { anonymousUsername: currentMystery } }] : []),
-          ...(user?.email ? [{ targetUser: { email: user.email } }] : []),
-        ],
-      },
-      include: {
-        confessor: true,
-        targetUser: true,
-        confession: true,
-        chatRoom: true,
-      },
-      orderBy: { createdAt: "desc" },
-    });
+    const incoming: any[] = [];
+    const outgoing: any[] = [];
 
-    const incoming = incomingRequests.map((i) => ({
-      id: i.id,
-      fromUser: i.targetUser?.anonymousUsername || "Anonymous",
-      requesterId: i.targetUserId,
-      avatarUrl: i.targetUser?.avatarUrl || null,
-      confessionId: i.confessionId,
-      confessionContent: i.confession?.content || "",
-      status: (i.confessorAction || "pending").toLowerCase(),
-      response: i.targetResponse,
-      createdAt: i.createdAt,
-      chatRoomId: i.chatRoom?.id || null,
-    }));
+    for (const r of allRequests) {
+      const isTaggedStoryRequest = r.targetResponse === "TaggedAlert";
 
-    const outgoing = outgoingRequests.map((i) => ({
-      id: i.id,
-      toUser: i.confessor?.anonymousUsername || "Author",
-      authorId: i.confessorId,
-      avatarUrl: i.confessor?.avatarUrl || null,
-      confessionId: i.confessionId,
-      confessionContent: i.confession?.content || "",
-      status: (i.confessorAction || "pending").toLowerCase(),
-      response: i.targetResponse,
-      createdAt: i.createdAt,
-      chatRoomId: i.chatRoom?.id || null,
-    }));
+      if (isTaggedStoryRequest) {
+        // Tagged story flow: Author (confessorId) initiated -> Tagged student (targetUserId) receives action
+        if (r.targetUserId === dbUser.id) {
+          incoming.push({
+            id: r.id,
+            fromUser: r.confessor?.anonymousUsername || "Author",
+            requesterId: r.confessorId,
+            avatarUrl: r.confessor?.avatarUrl || null,
+            confessionId: r.confessionId,
+            confessionContent: r.confession?.content || "Secret tagged confession for you",
+            status: (r.confessorAction || "pending").toLowerCase(),
+            response: r.targetResponse,
+            createdAt: r.createdAt,
+            chatRoomId: r.chatRoom?.id || null,
+            isTaggedStory: true,
+          });
+        } else if (r.confessorId === dbUser.id) {
+          outgoing.push({
+            id: r.id,
+            toUser: r.targetUser?.anonymousUsername || r.targetUser?.realName || "Tagged Student",
+            authorId: r.targetUserId,
+            avatarUrl: r.targetUser?.avatarUrl || null,
+            confessionId: r.confessionId,
+            confessionContent: r.confession?.content || "Story tagged for " + (r.targetUser?.realName || "student"),
+            status: (r.confessorAction || "pending").toLowerCase(),
+            response: r.targetResponse,
+            createdAt: r.createdAt,
+            chatRoomId: r.chatRoom?.id || null,
+            isTaggedStory: true,
+          });
+        }
+      } else {
+        // Viewer interaction flow: Viewer (targetUserId) requested -> Author (confessorId) receives action
+        if (r.confessorId === dbUser.id) {
+          incoming.push({
+            id: r.id,
+            fromUser: r.targetUser?.anonymousUsername || "Anonymous",
+            requesterId: r.targetUserId,
+            avatarUrl: r.targetUser?.avatarUrl || null,
+            confessionId: r.confessionId,
+            confessionContent: r.confession?.content || "",
+            status: (r.confessorAction || "pending").toLowerCase(),
+            response: r.targetResponse,
+            createdAt: r.createdAt,
+            chatRoomId: r.chatRoom?.id || null,
+            isTaggedStory: false,
+          });
+        } else if (r.targetUserId === dbUser.id) {
+          outgoing.push({
+            id: r.id,
+            toUser: r.confessor?.anonymousUsername || "Author",
+            authorId: r.confessorId,
+            avatarUrl: r.confessor?.avatarUrl || null,
+            confessionId: r.confessionId,
+            confessionContent: r.confession?.content || "",
+            status: (r.confessorAction || "pending").toLowerCase(),
+            response: r.targetResponse,
+            createdAt: r.createdAt,
+            chatRoomId: r.chatRoom?.id || null,
+            isTaggedStory: false,
+          });
+        }
+      }
+    }
 
     return res.json({
       incoming,
@@ -96,8 +106,8 @@ interactionRouter.get("/my", optionalJwt, async (req: Request, res: Response) =>
       count: incoming.length + outgoing.length,
     });
   } catch (err: any) {
-    console.error("Fetch interactions error:", err);
-    return res.json({ incoming: [], outgoing: [], value: [], count: 0 });
+    console.error("Fetch interactions error:", err.message);
+    return res.status(500).json({ error: "Failed to fetch interaction requests from database." });
   }
 });
 
@@ -161,6 +171,7 @@ interactionRouter.post("/respond", authenticateJwt, async (req: Request, res: Re
           type: "InteractRequest",
           title: "New Connection Request! 💬",
           body: `${user.anonymousUsername || "Someone"} wants to interact with your story: "${confession.content.substring(0, 35)}..."`,
+          data: JSON.stringify({ confessionId: confession.id, interactionRequestId: interaction.id }),
         },
       });
       emitToUser(confession.authorId, "NotificationReceived", notif);
@@ -184,7 +195,7 @@ interactionRouter.post("/respond", authenticateJwt, async (req: Request, res: Re
 
     return res.json({ success: true, interactionId: interaction.id });
   } catch (err: any) {
-    console.error("Interaction respond error:", err);
+    console.error("Interaction respond error:", err.message);
     return res.status(500).json({ error: err.message || "Failed to respond." });
   }
 });
@@ -207,8 +218,13 @@ interactionRouter.post("/confessor-action", authenticateJwt, async (req: Request
       return res.status(404).json({ error: "Interaction request not found." });
     }
 
-    if (interaction.confessorId !== currentUserId && interaction.targetUserId !== currentUserId && userRole !== "Admin" && userRole !== "Super Admin") {
-      return res.status(403).json({ error: "Forbidden. You are not authorized to accept or decline this request." });
+    // Determine the authorized action-taker for this exact request
+    const isTaggedStory = interaction.targetResponse === "TaggedAlert";
+    const authorizedActionUserId = isTaggedStory ? interaction.targetUserId : interaction.confessorId;
+
+    if (currentUserId !== authorizedActionUserId && userRole !== "Admin" && userRole !== "Super Admin") {
+      const roleMsg = isTaggedStory ? "the tagged student" : "the story author";
+      return res.status(403).json({ error: `Forbidden. Only ${roleMsg} is authorized to accept or decline this request.` });
     }
 
     await prisma.interactionRequest.update({
@@ -238,25 +254,31 @@ interactionRouter.post("/confessor-action", authenticateJwt, async (req: Request
       }
       chatRoomId = chatRoom.id;
 
-      // In-app notification for the requester
+      // In-app notification for the other party (the requester)
+      const recipientOfAcceptedAlert = currentUserId === interaction.targetUserId ? interaction.confessorId : interaction.targetUserId;
+      const actorName = currentUserId === interaction.targetUserId
+        ? (interaction.targetUser?.anonymousUsername || "Student")
+        : (interaction.confessor?.anonymousUsername || "Author");
+
       try {
         const notif = await prisma.notification.create({
           data: {
-            userId: interaction.targetUserId,
+            userId: recipientOfAcceptedAlert,
             type: "RequestAccepted",
             title: "Connection Accepted! 🎉",
-            body: `${interaction.confessor?.anonymousUsername || "Author"} accepted your connection request! Tap to start chatting.`,
+            body: `${actorName} accepted the connection! Tap to open chat.`,
+            data: JSON.stringify({ chatRoomId: chatRoom.id, interactionRequestId: interaction.id }),
           },
         });
-        emitToUser(interaction.targetUserId, "NotificationReceived", notif);
-        emitToUser(interaction.targetUserId, "InteractionOutcomeReceived", {
+        emitToUser(recipientOfAcceptedAlert, "NotificationReceived", notif);
+        emitToUser(recipientOfAcceptedAlert, "InteractionOutcomeReceived", {
           requestId: interaction.id,
           action: "Accepted",
           status: "accepted",
           chatRoomId: chatRoom.id,
-          confessorName: interaction.confessor?.anonymousUsername || "Author",
+          confessorName: actorName,
         });
-        emitToUser(interaction.confessorId, "InteractionOutcomeUpdated", {
+        emitToUser(currentUserId, "InteractionOutcomeUpdated", {
           requestId: interaction.id,
           action: "Accepted",
           status: "accepted",
@@ -264,7 +286,8 @@ interactionRouter.post("/confessor-action", authenticateJwt, async (req: Request
         });
       } catch (_) {}
     } else {
-      emitToUser(interaction.targetUserId, "InteractionOutcomeReceived", {
+      const recipientOfDeclinedAlert = currentUserId === interaction.targetUserId ? interaction.confessorId : interaction.targetUserId;
+      emitToUser(recipientOfDeclinedAlert, "InteractionOutcomeReceived", {
         requestId: interaction.id,
         action: "Declined",
         status: "declined",
@@ -273,7 +296,7 @@ interactionRouter.post("/confessor-action", authenticateJwt, async (req: Request
 
     return res.json({ success: true, chatRoomId, status: statusStr });
   } catch (err: any) {
-    console.error("Confessor action error:", err);
+    console.error("Confessor action error:", err.message);
     return res.status(500).json({ error: err.message || "Failed to process action." });
   }
 });

@@ -9,9 +9,16 @@ export const confessionRouter = Router();
 const handleGetFeed = async (req: Request, res: Response) => {
   try {
     const userId = req.user?.id;
-    const userRole = req.user?.role;
-    const userMysteryName = req.user?.mysteryName || "";
-    const userRealName = (req.user as any)?.realName || "";
+    let dbUser: any = null;
+
+    if (userId) {
+      dbUser = await prisma.user.findUnique({ where: { id: userId } });
+    }
+
+    const userRole = dbUser?.role || req.user?.role;
+    const userMysteryName = (dbUser?.anonymousUsername || req.user?.mysteryName || "").trim();
+    const userRealName = (dbUser?.realName || "").trim();
+    const userEmail = (dbUser?.email || req.user?.email || "").trim();
     const { college, branch, year, search } = req.query;
 
     const baseFilter: any = {
@@ -25,27 +32,48 @@ const handleGetFeed = async (req: Request, res: Response) => {
     if (branch) whereFilter(baseFilter, "branch", String(branch));
     if (year) whereFilter(baseFilter, "yearSemester", String(year));
     if (search) {
-      baseFilter.content = { contains: String(search), mode: "insensitive" };
+      const s = String(search).trim();
+      baseFilter.OR = [
+        { content: { contains: s, mode: "insensitive" } },
+        { targetPerson: { contains: s, mode: "insensitive" } },
+        { author: { anonymousUsername: { contains: s, mode: "insensitive" } } },
+      ];
     }
 
     // Visibility rules:
     // 1. Admins/Super Admins see all approved stories.
-    // 2. Authenticated users see public stories PLUS tagged stories where they are author or tagged person.
+    // 2. Authenticated users see public stories PLUS tagged stories where they are author, tagged recipient, or linked in interaction.
     // 3. Unauthenticated/Guest see public stories only.
     let visibilityFilter: any;
     if (userRole === "Admin" || userRole === "Super Admin") {
       visibilityFilter = {};
-    } else if (userId) {
+    } else if (userId && dbUser) {
+      const myTaggedInteractions = await prisma.interactionRequest.findMany({
+        where: { targetUserId: dbUser.id },
+        select: { confessionId: true },
+      });
+      const myTaggedConfessionIds = myTaggedInteractions.map((r) => r.confessionId);
+
+      const taggedConditions: any[] = [{ authorId: dbUser.id }, { targetPerson: { equals: dbUser.id } }];
+      if (userMysteryName) {
+        taggedConditions.push({ targetPerson: { equals: userMysteryName, mode: "insensitive" } });
+      }
+      if (userRealName) {
+        taggedConditions.push({ targetPerson: { equals: userRealName, mode: "insensitive" } });
+      }
+      if (userEmail) {
+        taggedConditions.push({ targetPerson: { equals: userEmail, mode: "insensitive" } });
+      }
+      if (myTaggedConfessionIds.length > 0) {
+        taggedConditions.push({ id: { in: myTaggedConfessionIds } });
+      }
+
       visibilityFilter = {
         OR: [
           { type: "public" },
           {
             type: "tagged",
-            OR: [
-              { authorId: userId },
-              { targetPerson: { equals: userMysteryName, mode: "insensitive" } },
-              { targetPerson: { equals: userRealName, mode: "insensitive" } },
-            ],
+            OR: taggedConditions,
           },
         ],
       };
@@ -87,7 +115,10 @@ const handleGetFeed = async (req: Request, res: Response) => {
     const mapped = confessions.map((c) => {
       const isLiked = userId ? c.likes.some((l) => l.userId === userId) : false;
       const isRequested = userId ? userRequestsSet.has(c.id) : false;
-      const isMine = userId ? c.authorId === userId : (userMysteryName && c.author?.anonymousUsername?.toLowerCase() === userMysteryName.toLowerCase());
+      const isMine = userId
+        ? c.authorId === userId
+        : Boolean(userMysteryName && c.author?.anonymousUsername?.toLowerCase() === userMysteryName.toLowerCase());
+
       return {
         id: c.id,
         content: c.content,
@@ -111,8 +142,8 @@ const handleGetFeed = async (req: Request, res: Response) => {
 
     return res.json(mapped);
   } catch (err: any) {
-    console.error("Fetch feed error:", err);
-    return res.json([]);
+    console.error("Fetch feed error:", err.message);
+    return res.status(500).json({ error: "Failed to fetch stories from database." });
   }
 };
 
@@ -127,26 +158,38 @@ confessionRouter.get("/search", optionalJwt, handleGetFeed);
 // GET /api/confession/targeted
 confessionRouter.get("/targeted", optionalJwt, async (req: Request, res: Response) => {
   try {
-    const user = req.user;
-    const myName = user?.mysteryName || "";
+    const userId = req.user?.id;
+    let dbUser: any = null;
+    if (userId) dbUser = await prisma.user.findUnique({ where: { id: userId } });
+
+    const myName = (dbUser?.anonymousUsername || req.user?.mysteryName || "").trim();
+    const myReal = (dbUser?.realName || "").trim();
+
+    const conditions: any[] = [];
+    if (myName) conditions.push({ targetPerson: { contains: myName, mode: "insensitive" } });
+    if (myReal) conditions.push({ targetPerson: { contains: myReal, mode: "insensitive" } });
+    if (userId) conditions.push({ targetPerson: { equals: userId } });
+
+    if (conditions.length === 0) return res.json([]);
+
     const confessions = await prisma.confession.findMany({
       where: {
         type: "tagged",
-        targetPerson: { contains: myName, mode: "insensitive" },
+        OR: conditions,
       },
       include: { author: true, likes: true },
     });
     return res.json(confessions);
-  } catch (_) {
-    return res.json([]);
+  } catch (err: any) {
+    console.error("Targeted confessions error:", err.message);
+    return res.status(500).json({ error: "Failed to fetch targeted stories." });
   }
 });
 
 // GET /api/confession/my
-confessionRouter.get("/my", optionalJwt, async (req: Request, res: Response) => {
+confessionRouter.get("/my", authenticateJwt, async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
-    if (!userId) return res.json([]);
+    const userId = req.user!.id;
     const confessions = await prisma.confession.findMany({
       where: { authorId: userId },
       include: { author: true, likes: true },
@@ -165,11 +208,13 @@ confessionRouter.get("/my", optionalJwt, async (req: Request, res: Response) => 
         likes: c.likes.length,
         likesCount: c.likes.length,
         type: c.type,
+        targetPerson: c.targetPerson,
         isMine: true,
       }))
     );
-  } catch (_) {
-    return res.json([]);
+  } catch (err: any) {
+    console.error("Fetch my confessions error:", err.message);
+    return res.status(500).json({ error: "Failed to fetch your stories." });
   }
 });
 
@@ -181,6 +226,7 @@ confessionRouter.get("/users/search", optionalJwt, async (req: Request, res: Res
 
     const users = await prisma.user.findMany({
       where: {
+        isActive: true,
         OR: [
           { anonymousUsername: { contains: query, mode: "insensitive" } },
           { realName: { contains: query, mode: "insensitive" } },
@@ -201,8 +247,9 @@ confessionRouter.get("/users/search", optionalJwt, async (req: Request, res: Res
         isVerifiedBadge: u.isVerifiedBadge || false,
       }))
     );
-  } catch (_) {
-    return res.json([]);
+  } catch (err: any) {
+    console.error("User search error:", err.message);
+    return res.status(500).json({ error: "Failed to search students." });
   }
 });
 
@@ -248,12 +295,15 @@ confessionRouter.post("/", optionalJwt, async (req: Request, res: Response) => {
       userId = user.id;
     }
 
+    const isTagged = type === "tagged" || type === 2 || Boolean(targetPerson);
+    const confessionType = isTagged ? "tagged" : "public";
+
     const confession = await prisma.confession.create({
       data: {
         authorId: user.id,
-        content: content || "",
-        targetPerson: targetPerson || null,
-        type: type || "public",
+        content: content ? content.trim() : "",
+        targetPerson: targetPerson ? String(targetPerson).trim() : null,
+        type: confessionType,
         collegeName: college || user.collegeName || "Arya (MAIN), kukas",
         branch: branch || user.branch || "CS",
         yearSemester: semester || user.yearSemester || "1",
@@ -266,6 +316,73 @@ confessionRouter.post("/", optionalJwt, async (req: Request, res: Response) => {
     });
 
     const authorDisplayName = authorMysteryName || confession.author?.anonymousUsername || user.anonymousUsername || "Anonymous";
+
+    // If tagged story with a target person, find target user and create interaction request + persistent notification
+    if (isTagged && confession.targetPerson) {
+      try {
+        const cleanTarget = confession.targetPerson.trim();
+        const targetUser = await prisma.user.findFirst({
+          where: {
+            OR: [
+              { id: cleanTarget },
+              { realName: { equals: cleanTarget, mode: "insensitive" } },
+              { anonymousUsername: { equals: cleanTarget, mode: "insensitive" } },
+              { email: { equals: cleanTarget, mode: "insensitive" } },
+            ],
+          },
+        });
+
+        if (targetUser && targetUser.id !== user.id) {
+          // Create InteractionRequest with explicit semantics: User A (Author) = confessorId, User B (Tagged) = targetUserId
+          const interaction = await prisma.interactionRequest.create({
+            data: {
+              confessionId: confession.id,
+              confessorId: user.id,
+              targetUserId: targetUser.id,
+              targetResponse: "TaggedAlert",
+              confessorAction: "Pending",
+            },
+          });
+
+          // Create persistent notification for targetUser
+          const notif = await prisma.notification.create({
+            data: {
+              userId: targetUser.id,
+              type: "TaggedConfession",
+              title: "Someone tagged you in a secret story! 💌",
+              body: `You were tagged in a campus story: "${confession.content.substring(0, 45)}..."`,
+              data: JSON.stringify({
+                confessionId: confession.id,
+                interactionRequestId: interaction.id,
+                authorName: authorDisplayName,
+              }),
+            },
+          });
+
+          // Emit real-time WebSocket events to recipient
+          emitToUser(targetUser.id, "NotificationReceived", notif);
+          emitToUser(targetUser.id, "InteractionRequestReceived", {
+            id: interaction.id,
+            fromUser: authorDisplayName,
+            requesterId: user.id,
+            confessionId: confession.id,
+            confessionContent: confession.content,
+            status: "pending",
+            createdAt: interaction.createdAt,
+          });
+        }
+      } catch (notifErr: any) {
+        console.error("Tagged story notification/interaction creation error:", notifErr.message);
+      }
+    }
+
+    broadcastGlobal("AdminActivity", {
+      type: "confession",
+      title: "New Story Posted",
+      actor: authorDisplayName,
+      description: `Posted a ${confession.type} story: "${confession.content.substring(0, 30)}..."`,
+      timestamp: new Date().toISOString(),
+    });
 
     return res.status(201).json({
       id: confession.id,
@@ -285,7 +402,7 @@ confessionRouter.post("/", optionalJwt, async (req: Request, res: Response) => {
       isPinned: false,
     });
   } catch (err: any) {
-    console.error("Create confession error:", err);
+    console.error("Create confession error:", err.message);
     return res.status(500).json({ error: err.message || "Failed to create confession." });
   }
 });

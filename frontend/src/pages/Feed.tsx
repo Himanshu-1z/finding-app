@@ -25,6 +25,7 @@ export function Feed() {
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [matchingUsers, setMatchingUsers] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [feedError, setFeedError] = useState<string | null>(null);
   const [profileModalUser, setProfileModalUser] = useState<any>(null);
 
   // Fetch live confessions from backend
@@ -34,6 +35,7 @@ export function Feed() {
     confessionService
       .getFeed(1, 50)
       .then((res: any) => {
+        setFeedError(null);
         const rawList = Array.isArray(res)
           ? res
           : res && Array.isArray(res.items)
@@ -62,6 +64,9 @@ export function Feed() {
               isRequested: Boolean(item.isRequested),
               isMine: Boolean(item.isMine),
               type: item.type === "tagged" ? ("tagged" as const) : ("public" as const),
+              targetPerson: item.targetPerson || undefined,
+              targetCollege: item.targetCollege || undefined,
+              targetSemester: item.targetSemester || undefined,
               authorCollege: item.authorCollege || item.collegeName || "Arya (MAIN), kukas",
               authorBranch: item.authorBranch || item.branch || "CS",
               authorYear: item.authorYear || item.yearSemester || "1",
@@ -69,7 +74,10 @@ export function Feed() {
           });
         }
       })
-      .catch((err) => console.warn("Live feed fetch notice:", err))
+      .catch((err) => {
+        console.warn("Live feed fetch notice:", err);
+        setFeedError("Unable to connect to campus network. Tap to retry.");
+      })
       .finally(() => {
         setIsLoading(false);
       });
@@ -228,7 +236,17 @@ export function Feed() {
       </div>
 
       {/* ─── CONFESSIONS LIST ─── */}
-      {isLoading ? (
+      {feedError ? (
+        <div className="text-center py-12 px-4 bg-rose-500/10 border border-rose-500/20 rounded-2xl space-y-3">
+          <p className="text-sm font-bold text-rose-500">{feedError}</p>
+          <button
+            onClick={() => fetchLiveFeed(true)}
+            className="px-4 py-2 bg-primary text-on-primary rounded-xl text-xs font-bold neo-button cursor-pointer"
+          >
+            Retry Connection
+          </button>
+        </div>
+      ) : isLoading ? (
         <div className="flex flex-col items-center justify-center py-20 gap-3">
           <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
           <p className="text-xs text-on-surface-variant animate-pulse">Loading campus stories...</p>

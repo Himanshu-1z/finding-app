@@ -25,7 +25,8 @@ notificationRouter.get("/", authenticateJwt, async (req: Request, res: Response)
       }))
     );
   } catch (err: any) {
-    return res.json([]);
+    console.error("Fetch notifications error:", err.message);
+    return res.status(500).json({ error: "Failed to fetch notifications from database." });
   }
 });
 
